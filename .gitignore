@@ -1,0 +1,10 @@
+/vendor
+/composer.lock
+/wayfinder
+.DS_Store
+
+# Workbench generated files
+/workbench/bootstrap/cache
+/workbench/storage
+/workbench/database/database.sqlite
+/workbench/resources/js/safepoint.ts
