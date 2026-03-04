@@ -1,6 +1,5 @@
 /vendor
 /composer.lock
-/wayfinder
 .DS_Store
 
 # Workbench generated files
