@@ -3,7 +3,8 @@
 .DS_Store
 
 # Workbench generated files
-/workbench/bootstrap/cache
+/workbench/bootstrap/cache/*
+!/workbench/bootstrap/cache/.gitkeep
 /workbench/storage
 /workbench/database/database.sqlite
 /workbench/resources/js/safepoint.ts
