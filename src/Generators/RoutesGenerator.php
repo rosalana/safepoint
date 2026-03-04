@@ -28,7 +28,7 @@ class RoutesGenerator
     {
         $result = [];
 
-        foreach ($routes->filter(fn (Route $r) => $r->name() !== null && $this->isAppRoute($r)) as $route) {
+        foreach ($routes->filter(fn(Route $r) => $r->name() !== null && $this->isAppRoute($r)) as $route) {
             $annotations = AnnotationReader::read($route);
 
             if ($annotations['ignore']) {
@@ -38,8 +38,8 @@ class RoutesGenerator
             $result[$route->name()] = [
                 'method' => strtoupper($route->verbs()->first()->actual),
                 'params' => $this->buildParams($route, $annotations),
-                'body'   => $this->buildBody($route, $annotations),
-                'props'  => $this->buildProps($route, $annotations),
+                'body' => $this->buildBody($route, $annotations),
+                'props' => $this->buildProps($route, $annotations),
             ];
         }
 
@@ -81,7 +81,7 @@ class RoutesGenerator
                 $type = $annotations['params'][$parameter->name];
             } else {
                 $types = array_map(
-                    fn (Type $t) => SurveyorTypeConverter::convert($t),
+                    fn(Type $t) => SurveyorTypeConverter::convert($t),
                     $parameter->types,
                 );
                 $type = implode(' | ', array_unique(array_filter($types)));
@@ -96,7 +96,7 @@ class RoutesGenerator
 
         // @safepoint-param can also add params not in the route definition
         foreach ($annotations['params'] as $name => $type) {
-            $alreadyAdded = $route->parameters()->contains(fn ($p) => $p->name === $name);
+            $alreadyAdded = $route->parameters()->contains(fn($p) => $p->name === $name);
             if (! $alreadyAdded) {
                 $parts[] = $name . ': ' . $type;
             }
@@ -127,7 +127,7 @@ class RoutesGenerator
         }
 
         $annotationLines = array_map(
-            fn ($k, $v) => '  ' . $k . ': ' . $v,
+            fn($k, $v) => '  ' . $k . ': ' . $v,
             array_keys($annotations['body']),
             array_values($annotations['body']),
         );
@@ -145,7 +145,7 @@ class RoutesGenerator
     {
         /** @var InertiaResponse|null $inertia */
         $inertia = collect($route->possibleResponses())
-            ->first(fn ($r) => $r instanceof InertiaResponse);
+            ->first(fn($r) => $r instanceof InertiaResponse);
 
         $props = [];
 
@@ -240,12 +240,12 @@ class RoutesGenerator
     {
         $validIncludes = array_filter(
             $includeRelations,
-            fn ($rel) => array_key_exists($rel, $model['relations']),
+            fn($rel) => array_key_exists($rel, $model['relations']),
         );
 
         $allKeys = array_unique(array_merge($model['attributeKeys'], array_values($validIncludes)));
 
-        return collect($allKeys)->map(fn ($k) => "'{$k}'")->implode(' | ');
+        return collect($allKeys)->map(fn($k) => "'{$k}'")->implode(' | ');
     }
 
     /**
@@ -328,14 +328,14 @@ class RoutesGenerator
 
     private function isRequired(Collection $rules): bool
     {
-        return $rules->first(fn (Rule $r) => $r->is('Required')) !== null;
+        return $rules->first(fn(Rule $r) => $r->is('Required')) !== null;
     }
 
     private function resolveFieldType(Collection $rules): string
     {
         $baseType = $this->resolveBaseType($rules);
 
-        if ($rules->first(fn (Rule $r) => $r->is('Nullable'))) {
+        if ($rules->first(fn(Rule $r) => $r->is('Nullable'))) {
             return $baseType . ' | null';
         }
 
@@ -345,31 +345,31 @@ class RoutesGenerator
     private function resolveBaseType(Collection $rules): string
     {
         // In rule → literal union
-        $inRule = $rules->first(fn (Rule $r) => $r->is('In'));
+        $inRule = $rules->first(fn(Rule $r) => $r->is('In'));
         if ($inRule) {
             return collect($inRule->getParams())
-                ->filter(fn ($v) => ! is_null($v) && $v !== '')
-                ->map(fn ($v) => '"' . $v . '"')
+                ->filter(fn($v) => ! is_null($v) && $v !== '')
+                ->map(fn($v) => '"' . $v . '"')
                 ->implode(' | ');
         }
 
-        if ($rules->first(fn (Rule $r) => $r->is('String') || $r->is('Email') || $r->is('Url') || $r->is('Uuid'))) {
+        if ($rules->first(fn(Rule $r) => $r->is('String') || $r->is('Email') || $r->is('Url') || $r->is('Uuid'))) {
             return 'string';
         }
 
-        if ($rules->first(fn (Rule $r) => $r->is('Integer') || $r->is('Numeric') || $r->is('Digits') || $r->is('DigitsBetween'))) {
+        if ($rules->first(fn(Rule $r) => $r->is('Integer') || $r->is('Numeric') || $r->is('Digits') || $r->is('DigitsBetween'))) {
             return 'number';
         }
 
-        if ($rules->first(fn (Rule $r) => $r->is('Boolean') || $r->is('Accepted'))) {
+        if ($rules->first(fn(Rule $r) => $r->is('Boolean') || $r->is('Accepted'))) {
             return 'boolean';
         }
 
-        if ($rules->first(fn (Rule $r) => $r->is('Decimal'))) {
+        if ($rules->first(fn(Rule $r) => $r->is('Decimal'))) {
             return '`${number}.${number}`';
         }
 
-        $arrayRule = $rules->first(fn (Rule $r) => $r->is('Array'));
+        $arrayRule = $rules->first(fn(Rule $r) => $r->is('Array'));
         if ($arrayRule) {
             return 'unknown[]';
         }

@@ -56,7 +56,7 @@ class GenerateCommand extends Command
             // Skip vendor models (e.g. DatabaseNotification from Notifiable trait)
             try {
                 $modelFile = (new \ReflectionClass($model->name))->getFileName();
-                $inAppPath = collect($appPaths)->contains(fn ($path) => str_starts_with($modelFile, $path));
+                $inAppPath = collect($appPaths)->contains(fn($path) => str_starts_with($modelFile, $path));
                 if (! $inAppPath) {
                     return;
                 }

@@ -33,9 +33,9 @@ class AnnotationReader
         return [
             'ignore'  => (bool) preg_match('/@safepoint-ignore\b/', $doc),
             'include' => static::parseList($doc, 'safepoint-include'),
-            'props'   => static::parseKeyType($doc, 'safepoint-prop'),
-            'body'    => static::parseKeyType($doc, 'safepoint-body'),
-            'params'  => static::parseKeyType($doc, 'safepoint-param'),
+            'props' => static::parseKeyType($doc, 'safepoint-prop'),
+            'body' => static::parseKeyType($doc, 'safepoint-body'),
+            'params' => static::parseKeyType($doc, 'safepoint-param'),
         ];
     }
 

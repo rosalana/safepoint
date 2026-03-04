@@ -2,7 +2,6 @@
 
 namespace Rosalana\Safepoint\Support;
 
-use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Laravel\Surveyor\Types;
 use Laravel\Surveyor\Types\Contracts\Type;
@@ -43,7 +42,7 @@ class SurveyorTypeConverter
         if (array_is_list($value)) {
             // List of type options → union[]
             $types = collect($value)
-                ->map(fn ($t) => $t instanceof Type ? static::convert($t) : (string) $t)
+                ->map(fn($t) => $t instanceof Type ? static::convert($t) : (string) $t)
                 ->unique()
                 ->filter()
                 ->implode(' | ');
@@ -117,7 +116,7 @@ class SurveyorTypeConverter
                 if (is_array($item)) {
                     return collect($item)
                         ->filter()
-                        ->map(fn ($t) => $t instanceof Type ? static::convert($t) : (string) $t)
+                        ->map(fn($t) => $t instanceof Type ? static::convert($t) : (string) $t)
                         ->unique()
                         ->implode(' | ');
                 }
@@ -133,7 +132,7 @@ class SurveyorTypeConverter
 
         // Simplify: if we have other types with 'unknown', keep only the non-unknown ones
         if ($result->count() > 1 && $result->contains('unknown')) {
-            $withoutUnknown = $result->filter(fn ($t) => $t !== 'unknown');
+            $withoutUnknown = $result->filter(fn($t) => $t !== 'unknown');
             if ($withoutUnknown->count() === 1 && $withoutUnknown->first() === 'null') {
                 return 'unknown';
             }
@@ -175,7 +174,7 @@ class SurveyorTypeConverter
             if (str_contains($tsType, PHP_EOL)) {
                 $typeParts = explode(PHP_EOL, $tsType);
                 $tsType = $typeParts[0] . PHP_EOL . implode(PHP_EOL, array_map(
-                    fn (string $line) => $line !== '' ? $spaces . $line : $line,
+                    fn(string $line) => $line !== '' ? $spaces . $line : $line,
                     array_slice($typeParts, 1),
                 ));
             }

@@ -4,7 +4,6 @@ namespace Rosalana\Safepoint\Generators;
 
 use Illuminate\Support\Str;
 use Laravel\Ranger\Components\Model;
-use Laravel\Surveyor\Types\Contracts\Type;
 use Rosalana\Safepoint\Support\SurveyorTypeConverter;
 
 class ModelGenerator
@@ -32,11 +31,11 @@ class ModelGenerator
         }
 
         return [
-            'fqn'           => $model->name,
-            'name'          => $shortName,
-            'attributes'    => $attributes,
+            'fqn' => $model->name,
+            'name' => $shortName,
+            'attributes' => $attributes,
             'attributeKeys' => array_keys($attributes),
-            'relations'     => $relations,
+            'relations' => $relations,
         ];
     }
 }

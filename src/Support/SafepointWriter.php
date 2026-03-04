@@ -119,7 +119,7 @@ class SafepointWriter
         return implode(
             PHP_EOL,
             array_map(
-                fn ($line, $i) => $i === 0 ? $line : $pad . $line,
+                fn($line, $i) => $i === 0 ? $line : $pad . $line,
                 explode(PHP_EOL, $block),
                 array_keys(explode(PHP_EOL, $block)),
             ),
