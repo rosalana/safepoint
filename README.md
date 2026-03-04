@@ -99,7 +99,7 @@ composer require rosalana/safepoint
 php artisan safepoint:generate
 ```
 
-The file is written to `resources/js/safepoint.ts` by default.
+The file is written to `resources/js/types/safepoint.ts` by default.
 
 ### Options
 
