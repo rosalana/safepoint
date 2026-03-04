@@ -8,3 +8,4 @@
 /workbench/storage
 /workbench/database/database.sqlite
 /workbench/resources/js/safepoint.ts
+/workbench/resources/js/types/safepoint.ts

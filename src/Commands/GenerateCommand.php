@@ -99,7 +99,7 @@ class GenerateCommand extends Command
             $sharedData ?? '',
         );
 
-        $outputPath = $this->option('path') ?? resource_path('js/safepoint.ts');
+        $outputPath = $this->option('path') ?? resource_path('js/types/safepoint.ts');
 
         $files->ensureDirectoryExists(dirname($outputPath));
         $files->put($outputPath, $output);
