@@ -151,6 +151,7 @@ class RoutesGenerator
 
         if ($inertia !== null && ! empty($inertia->data)) {
             foreach ($inertia->data as $key => $type) {
+                /** @var Type $type */
                 $props[$key] = $this->convertPropType($type, $annotations['include']);
             }
         }
