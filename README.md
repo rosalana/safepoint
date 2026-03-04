@@ -127,6 +127,34 @@ Safepoint uses [`laravel/ranger`](https://github.com/laravel/ranger) and [`larav
 
 Only models and routes whose source files are under `--app-path` are included. Vendor models (e.g. `DatabaseNotification` from the `Notifiable` trait) are automatically filtered out.
 
+## PHPDoc annotations
+
+Since Safepoint uses static analysis, it can't detect runtime behavior like `$post->load('user')` or manually built responses. Use PHPDoc annotations on controller methods to override or extend the generated types.
+
+| Annotation | Example | Effect |
+|---|---|---|
+| `@safepoint-ignore` | `@safepoint-ignore` | Skip this route entirely |
+| `@safepoint-include` | `@safepoint-include user, comments` | Add relations to the RequiredKeys key list for props |
+| `@safepoint-prop` | `@safepoint-prop pagination { current_page: number; total: number }` | Add or override a prop's TypeScript type |
+| `@safepoint-body` | `@safepoint-body token string` | Add or override a body field's TypeScript type |
+| `@safepoint-param` | `@safepoint-param slug string` | Add or override a URL parameter's TypeScript type |
+
+```php
+/**
+ * @safepoint-include user
+ * @safepoint-prop meta { total: number; page: number }
+ */
+public function show(Post $post): Response
+{
+    return Inertia::render('Post/Show', [
+        'post' => $post->load('user'),
+        'meta' => [...],
+    ]);
+}
+```
+
+`@safepoint-include` only adds relations that actually exist on the model — unknown relation names are silently ignored.
+
 ## Extending the generated types
 
 Since the generated file is overwritten on each run, **do not edit it directly**. Instead, create a separate file and use TypeScript [declaration merging](https://www.typescriptlang.org/docs/handbook/declaration-merging.html):
