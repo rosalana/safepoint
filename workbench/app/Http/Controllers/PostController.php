@@ -17,6 +17,9 @@ class PostController
         ]);
     }
 
+    /**
+     * @safepoint-include user
+     */
     public function show(Post $post): Response
     {
         return Inertia::render('Post/Show', [

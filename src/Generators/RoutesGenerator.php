@@ -9,6 +9,7 @@ use Laravel\Ranger\Validation\Rule;
 use Laravel\Surveyor\Types\ArrayType;
 use Laravel\Surveyor\Types\ClassType;
 use Laravel\Surveyor\Types\Contracts\Type;
+use Rosalana\Safepoint\Support\AnnotationReader;
 use Rosalana\Safepoint\Support\SurveyorTypeConverter;
 
 class RoutesGenerator
@@ -28,11 +29,17 @@ class RoutesGenerator
         $result = [];
 
         foreach ($routes->filter(fn (Route $r) => $r->name() !== null && $this->isAppRoute($r)) as $route) {
+            $annotations = AnnotationReader::read($route);
+
+            if ($annotations['ignore']) {
+                continue;
+            }
+
             $result[$route->name()] = [
                 'method' => strtoupper($route->verbs()->first()->actual),
-                'params' => $this->buildParams($route),
-                'body'   => $this->buildBody($route),
-                'props'  => $this->buildProps($route),
+                'params' => $this->buildParams($route, $annotations),
+                'body'   => $this->buildBody($route, $annotations),
+                'props'  => $this->buildProps($route, $annotations),
             ];
         }
 
@@ -64,70 +71,111 @@ class RoutesGenerator
         return false;
     }
 
-    private function buildParams(Route $route): string
+    private function buildParams(Route $route, array $annotations): string
     {
-        if ($route->parameters()->isEmpty()) {
-            return 'never';
-        }
-
         $parts = [];
 
         foreach ($route->parameters() as $parameter) {
-            $types = array_map(
-                fn (Type $t) => SurveyorTypeConverter::convert($t),
-                $parameter->types,
-            );
-
-            $type = implode(' | ', array_unique(array_filter($types)));
-
-            if ($type === '') {
-                $type = 'string | number';
+            // @safepoint-param overrides the type for this parameter
+            if (isset($annotations['params'][$parameter->name])) {
+                $type = $annotations['params'][$parameter->name];
+            } else {
+                $types = array_map(
+                    fn (Type $t) => SurveyorTypeConverter::convert($t),
+                    $parameter->types,
+                );
+                $type = implode(' | ', array_unique(array_filter($types)));
+                if ($type === '') {
+                    $type = 'string | number';
+                }
             }
 
             $suffix = $parameter->optional ? '?' : '';
             $parts[] = $parameter->name . $suffix . ': ' . $type;
         }
 
+        // @safepoint-param can also add params not in the route definition
+        foreach ($annotations['params'] as $name => $type) {
+            $alreadyAdded = $route->parameters()->contains(fn ($p) => $p->name === $name);
+            if (! $alreadyAdded) {
+                $parts[] = $name . ': ' . $type;
+            }
+        }
+
+        if (empty($parts)) {
+            return 'never';
+        }
+
         return '{ ' . implode(', ', $parts) . ' }';
     }
 
-    private function buildBody(Route $route): string
+    private function buildBody(Route $route, array $annotations): string
     {
         $method = strtoupper($route->verbs()->first()->actual);
 
-        if ($method === 'GET' || $method === 'HEAD') {
-            return 'never';
+        $base = null;
+
+        if ($method !== 'GET' && $method !== 'HEAD') {
+            $validator = $route->requestValidator();
+            if ($validator !== null) {
+                $base = $this->convertValidationRules($validator->rules);
+            }
         }
 
-        $validator = $route->requestValidator();
-
-        if ($validator === null) {
-            return 'never';
+        if (empty($annotations['body'])) {
+            return $base ?? 'never';
         }
 
-        return $this->convertValidationRules($validator->rules);
+        $annotationLines = array_map(
+            fn ($k, $v) => '  ' . $k . ': ' . $v,
+            array_keys($annotations['body']),
+            array_values($annotations['body']),
+        );
+
+        if ($base === null) {
+            return '{' . PHP_EOL . implode(PHP_EOL, $annotationLines) . PHP_EOL . '}';
+        }
+
+        // Append annotation fields before closing }
+        return rtrim(substr(rtrim($base), 0, -1)) . PHP_EOL
+            . implode(PHP_EOL, $annotationLines) . PHP_EOL . '}';
     }
 
-    private function buildProps(Route $route): string
+    private function buildProps(Route $route, array $annotations): string
     {
         /** @var InertiaResponse|null $inertia */
         $inertia = collect($route->possibleResponses())
             ->first(fn ($r) => $r instanceof InertiaResponse);
 
-        if ($inertia === null || empty($inertia->data)) {
+        $props = [];
+
+        if ($inertia !== null && ! empty($inertia->data)) {
+            foreach ($inertia->data as $key => $type) {
+                $props[$key] = $this->convertPropType($type, $annotations['include']);
+            }
+        }
+
+        // @safepoint-prop: add or override individual props
+        foreach ($annotations['props'] as $key => $tsType) {
+            $props[$key] = $tsType;
+        }
+
+        if (empty($props)) {
             return 'never';
         }
 
-        $props = [];
-
-        foreach ($inertia->data as $key => $type) {
-            $props[] = '  ' . $key . ': ' . $this->convertPropType($type);
+        $lines = [];
+        foreach ($props as $key => $type) {
+            $lines[] = '  ' . $key . ': ' . $type;
         }
 
-        return '{' . PHP_EOL . implode(PHP_EOL, $props) . PHP_EOL . '}';
+        return '{' . PHP_EOL . implode(PHP_EOL, $lines) . PHP_EOL . '}';
     }
 
-    private function convertPropType(Type $type): string
+    /**
+     * @param string[] $includeRelations Relation names to add to RequiredKeys (from @safepoint-include)
+     */
+    private function convertPropType(Type $type, array $includeRelations = []): string
     {
         $nullable = $type->isNullable() ? ' | null' : '';
 
@@ -137,9 +185,7 @@ class RoutesGenerator
 
             if (isset($this->modelRegistry[$fqn])) {
                 $model = $this->modelRegistry[$fqn];
-                $keys = collect($model['attributeKeys'])
-                    ->map(fn ($k) => "'{$k}'")
-                    ->implode(' | ');
+                $keys = $this->buildRequiredKeys($model, $includeRelations);
                 return "RequiredKeys<{$model['name']}, {$keys}>{$nullable}";
             }
 
@@ -152,9 +198,7 @@ class RoutesGenerator
                         $modelFqn = ltrim($valueGeneric->value, '\\');
                         if (isset($this->modelRegistry[$modelFqn])) {
                             $model = $this->modelRegistry[$modelFqn];
-                            $keys = collect($model['attributeKeys'])
-                                ->map(fn ($k) => "'{$k}'")
-                                ->implode(' | ');
+                            $keys = $this->buildRequiredKeys($model, $includeRelations);
                             return "RequiredKeys<{$model['name']}, {$keys}>[]{$nullable}";
                         }
                     }
@@ -177,9 +221,7 @@ class RoutesGenerator
 
                     if (isset($this->modelRegistry[$fqn])) {
                         $model = $this->modelRegistry[$fqn];
-                        $keys = collect($model['attributeKeys'])
-                            ->map(fn ($k) => "'{$k}'")
-                            ->implode(' | ');
+                        $keys = $this->buildRequiredKeys($model, $includeRelations);
                         return "RequiredKeys<{$model['name']}, {$keys}>[]{$nullable}";
                     }
                 }
@@ -187,6 +229,22 @@ class RoutesGenerator
         }
 
         return SurveyorTypeConverter::convert($type);
+    }
+
+    /**
+     * Build the quoted key list for RequiredKeys<T, keys>, merging attribute keys
+     * with any @safepoint-include relations that actually exist on the model.
+     */
+    private function buildRequiredKeys(array $model, array $includeRelations): string
+    {
+        $validIncludes = array_filter(
+            $includeRelations,
+            fn ($rel) => array_key_exists($rel, $model['relations']),
+        );
+
+        $allKeys = array_unique(array_merge($model['attributeKeys'], array_values($validIncludes)));
+
+        return collect($allKeys)->map(fn ($k) => "'{$k}'")->implode(' | ');
     }
 
     /**
