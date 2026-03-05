@@ -152,13 +152,26 @@ class RoutesGenerator
         if ($inertia !== null && ! empty($inertia->data)) {
             foreach ($inertia->data as $key => $type) {
                 /** @var Type $type */
-                $props[$key] = $this->convertPropType($type, $annotations['include']);
+                $props[$key] = $this->convertPropType($type, $this->resolveIncludes($annotations['include'], $key));
             }
         }
 
-        // @safepoint-prop: add or override individual props
+        // @safepoint-prop: add or override props, with optional dot notation for nested overrides
+        $propExtensions = []; // propKey => list of 'field: Type' strings
         foreach ($annotations['props'] as $key => $tsType) {
-            $props[$key] = $tsType;
+            if (str_contains($key, '.')) {
+                [$propKey, $field] = explode('.', $key, 2);
+                $propExtensions[$propKey][] = '  ' . $field . ': ' . $tsType;
+            } else {
+                $props[$key] = $tsType;
+            }
+        }
+
+        // Apply nested extensions as intersection types: RequiredKeys<...> & { field: Type }
+        foreach ($propExtensions as $propKey => $extensionLines) {
+            $base = $props[$propKey] ?? null;
+            $extension = '{' . PHP_EOL . implode(PHP_EOL, $extensionLines) . PHP_EOL . '  }';
+            $props[$propKey] = $base !== null ? $base . ' & ' . $extension : $extension;
         }
 
         if (empty($props)) {
@@ -171,6 +184,33 @@ class RoutesGenerator
         }
 
         return '{' . PHP_EOL . implode(PHP_EOL, $lines) . PHP_EOL . '}';
+    }
+
+    /**
+     * Resolve which @safepoint-include relations apply to a specific prop key.
+     *
+     * - `user` (no dot) → applies to every model prop
+     * - `post.user` (with dot) → applies only to the `post` prop
+     *
+     * @param string[] $includes Raw include list from annotation
+     * @return string[] Resolved relation names for this prop
+     */
+    private function resolveIncludes(array $includes, string $propKey): array
+    {
+        $result = [];
+
+        foreach ($includes as $include) {
+            if (str_contains($include, '.')) {
+                [$targetProp, $relation] = explode('.', $include, 2);
+                if ($targetProp === $propKey) {
+                    $result[] = $relation;
+                }
+            } else {
+                $result[] = $include;
+            }
+        }
+
+        return $result;
     }
 
     /**
