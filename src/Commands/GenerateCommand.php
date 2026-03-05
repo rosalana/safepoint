@@ -9,6 +9,7 @@ use Laravel\Ranger\Components\InertiaSharedData;
 use Laravel\Ranger\Components\Model;
 use Laravel\Ranger\Ranger;
 use Rosalana\Safepoint\Generators\ModelGenerator;
+use Rosalana\Safepoint\Generators\RouteListGenerator;
 use Rosalana\Safepoint\Generators\RoutesGenerator;
 use Rosalana\Safepoint\Generators\SharedDataGenerator;
 use Rosalana\Safepoint\Support\SafepointWriter;
@@ -37,6 +38,7 @@ class GenerateCommand extends Command
         $models = [];
         $modelRegistry = [];
         $routes = null;
+        $routeList = null;
         $sharedData = null;
 
         $basePaths = $this->option('base-path')
@@ -50,9 +52,7 @@ class GenerateCommand extends Command
         $ranger->setBasePaths(...$basePaths);
         $ranger->setAppPaths(...$appPaths);
 
-        $modelGenerator = new ModelGenerator();
-
-        $ranger->onModel(function (Model $model) use (&$models, &$modelRegistry, $modelGenerator, $appPaths) {
+        $ranger->onModel(function (Model $model) use (&$models, &$modelRegistry, $appPaths) {
             // Skip vendor models (e.g. DatabaseNotification from Notifiable trait)
             try {
                 $modelFile = (new \ReflectionClass($model->name))->getFileName();
@@ -64,7 +64,7 @@ class GenerateCommand extends Command
                 return;
             }
 
-            $data = $modelGenerator->generate($model);
+            $data = (new ModelGenerator())->generate($model);
             $models[] = $data;
             $modelRegistry[$data['fqn']] = $data;
         });
@@ -73,8 +73,9 @@ class GenerateCommand extends Command
             $sharedData = (new SharedDataGenerator())->generate($data);
         });
 
-        $ranger->onRoutes(function (Collection $routeCollection) use (&$routes, &$modelRegistry, $appPaths) {
+        $ranger->onRoutes(function (Collection $routeCollection) use (&$routes, &$routeList, &$modelRegistry, $appPaths) {
             $routes = (new RoutesGenerator($modelRegistry, $appPaths))->generate($routeCollection);
+            $routeList = (new RouteListGenerator($appPaths))->generate($routeCollection);
         });
 
         $ranger->walk();
@@ -96,6 +97,7 @@ class GenerateCommand extends Command
         $output = (new SafepointWriter())->write(
             $models,
             $routes ?? [],
+            $routeList ?? [],
             $sharedData ?? '',
         );
 

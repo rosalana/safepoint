@@ -36,7 +36,7 @@ class RoutesGenerator
             }
 
             $result[$route->name()] = [
-                'method' => strtoupper($route->verbs()->first()->actual),
+                'method' => strtolower($route->verbs()->first()->actual),
                 'params' => $this->buildParams($route, $annotations),
                 'body' => $this->buildBody($route, $annotations),
                 'props' => $this->buildProps($route, $annotations),
