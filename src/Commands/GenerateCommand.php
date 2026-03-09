@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 use Laravel\Ranger\Components\InertiaSharedData;
 use Laravel\Ranger\Components\Model;
 use Laravel\Ranger\Ranger;
+use Rosalana\Safepoint\Generators\EnumsGenerator;
 use Rosalana\Safepoint\Generators\ModelGenerator;
 use Rosalana\Safepoint\Generators\RouteListGenerator;
 use Rosalana\Safepoint\Generators\RoutesGenerator;
@@ -39,6 +40,7 @@ class GenerateCommand extends Command
         $modelRegistry = [];
         $routes = null;
         $routeList = null;
+        $enums = null;
         $sharedData = null;
 
         $basePaths = $this->option('base-path')
@@ -78,6 +80,10 @@ class GenerateCommand extends Command
             $routeList = (new RouteListGenerator($appPaths))->generate($routeCollection);
         });
 
+        $ranger->onEnums(function (Collection $enumsCollection) use (&$enums) {
+            $enums = (new EnumsGenerator())->generate($enumsCollection);
+        });
+
         $ranger->walk();
 
         // Post-process: filter out relations that reference non-app models
@@ -95,10 +101,11 @@ class GenerateCommand extends Command
         }, $models);
 
         $output = (new SafepointWriter())->write(
-            $models,
-            $routes ?? [],
-            $routeList ?? [],
-            $sharedData ?? '',
+            models: $models,
+            routes: $routes ?? [],
+            routeList: $routeList ?? [],
+            enums: $enums ?? [],
+            sharedData: $sharedData ?? '',
         );
 
         $outputPath = $this->option('path') ?? resource_path('js/safepoint.ts');

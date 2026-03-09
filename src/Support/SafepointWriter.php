@@ -10,13 +10,15 @@ class SafepointWriter
      * @param array<array{name: string, attributes: array<string, string>, relations: array<string, string>}> $models
      * @param array<string, array{method: string, params: string, body: string, props: string}> $routes
      * @param array<string, array{method: string, uri: string}> $routeList
+     * @param array<array{name: string, cases: array<string, string>}> $enums
      * @param string $sharedData  The TS type body for SharedData (already formatted)
      */
-    public function write(array $models, array $routes, array $routeList, string $sharedData): string
+    public function write(array $models, array $routes, array $routeList, array $enums, string $sharedData): string
     {
         $sections = array_filter([
             $this->header(),
             $this->modelsSection($models),
+            $this->enumsSection($enums),
             $this->routesSection($routes),
             $this->sharedDataSection($sharedData),
             $this->routeListSection($routeList),
@@ -76,6 +78,29 @@ class SafepointWriter
         }
 
         $lines[] = '}';
+
+        return implode(PHP_EOL, $lines);
+    }
+
+    private function enumsSection(array $enums): string
+    {
+        if (empty($enums)) {
+            return '';
+        }
+
+        $lines = [];
+        $lines[] = '/* --- Enums --- */';
+        $lines[] = '';
+
+        foreach ($enums as $enum) {
+            $cases = [];
+
+            foreach ($enum['cases'] as $key => $value) {
+                $cases[] = $value;
+            }
+
+            $lines[] = 'export type ' . $enum['name'] . ' = ' . implode(' | ', array_map(fn($case) => "'" . $case . "'", $cases)) . ';';
+        }
 
         return implode(PHP_EOL, $lines);
     }
