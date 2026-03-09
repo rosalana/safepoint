@@ -36,81 +36,55 @@ It reads your Laravel application using static analysis and generates them for y
 
 ## What it generates
 
-Running `php artisan safepoint:generate` produces `resources/js/types/safepoint.ts`:
+Running `php artisan safepoint:generate` produces `resources/js/safepoint.ts`:
 
 ```ts
-// --- Models --- //
+/* --- Models --- */
 
 export interface Post {
   id: number
   title: string
-  body: string
-  published: boolean
-  user_id: number
-  created_at: string | null
-  updated_at: string | null
+  // ...all DB-backed attributes
 
-  user?: User | null
+  user?: User | null  // optional relations
 }
 
-// --- Routes --- //
+/* --- Enums --- */
+
+export type StatusEnum = 'draft' | 'published' | 'archived'
+
+/* --- Routes --- */
 
 export interface Routes {
-  'post.show': {
-    method: 'GET'
+  'posts.show': {
+    method: 'get'
     params: { post: number }
     body: never
-    props: {
-      post: RequiredKeys<Post, 'id' | 'title' | 'body' | 'published' | 'user_id' | 'created_at' | 'updated_at'>
-    }
+    props: { post: RequiredKeys<Post, 'id' | 'title'> }
   }
-
-  'post.store': {
-    method: 'POST'
-    params: never
-    body: {
-      title: string
-      body: string
-      published?: boolean
-    }
-    props: never
-  }
+  // ...all named app routes
 }
 
-// --- Shared Data --- //
+/* --- Shared Data --- */
 
 export interface SharedData {
-  auth: {
-    user: {
-      id: number
-      name: string
-      email: string
-    } | null
-  }
-  flash: {
-    success: string | null
-    error: string | null
-  }
+  auth: { user: { id: number; name: string } | null }
+  // ...everything returned from HandleInertiaRequests::share()
 }
 
-// --- Helpers --- //
+/* --- Route List --- */
 
-type RequiredKeys<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>
+export const _routes: { [key in keyof Routes]: { method: Method, uri: string } } = {
+  'posts.show': { method: 'get', uri: '/posts/{post}' },
+  // ...
+}
 
-export type PageProps<T extends keyof Routes> =
-  Routes[T]['props'] extends never
-    ? SharedData
-    : Routes[T]['props'] & SharedData
+/* --- Helpers --- */
 
-export type RouteParams<T extends keyof Routes> =
-  Routes[T]['params'] extends never
-    ? never
-    : Routes[T]['params']
-
-export type RouteBody<T extends keyof Routes> =
-  Routes[T]['body'] extends never
-    ? never
-    : Routes[T]['body']
+export type PageProps<T extends keyof Routes> = ...
+export type RouteParams<T extends keyof Routes> = ...
+export type RouteBody<T extends keyof Routes> = ...
+export function route<T extends keyof Routes>(name: T, ...args): { url: string; method: Method }
 ```
 
 ## Usage
@@ -123,7 +97,7 @@ php artisan safepoint:generate
 
 | Option | Description |
 | --- | --- |
-| `--path=` | Custom output path (default: `resources/js/types/safepoint.ts`) |
+| `--path=` | Custom output path (default: `resources/js/safepoint.ts`) |
 | `--base-path=` | Comma-separated base paths (default: `base_path()`) |
 | `--app-path=` | Comma-separated app paths (default: `app_path()`) |
 
@@ -142,8 +116,10 @@ Only models and routes whose source files are under `--app-path` are included. V
 Safepoint inspects your application statically — no runtime required:
 
 - **Models** — attributes from DB schema, relations from PHPDoc
+- **Enums** — PHP backed enums discovered via static analysis
 - **Routes** — HTTP method, URL parameters, request validation rules, Inertia props
 - **Shared data** — from `HandleInertiaRequests::share()`
+- **Route list** — a runtime-usable `_routes` const and a typed `route()` helper
 
 ## PHPDoc annotations
 
@@ -181,23 +157,41 @@ public function show(Post $post): Response
 Use `PageProps<T>` to get fully typed page props in your Inertia pages:
 
 ```ts
-import type { PageProps } from '@/types/safepoint'
+import type { PageProps } from '@/safepoint'
 import { usePage } from '@inertiajs/vue3'
 
-const { post } = usePage<PageProps<'post.show'>>().props
+const { post } = usePage<PageProps<'posts.show'>>().props
 // post is: RequiredKeys<Post, 'id' | 'title' | ...> & SharedData
 ```
 
 ### RouteParams & RouteBody
 
 ```ts
-import type { RouteParams, RouteBody } from '@/types/safepoint'
+import type { RouteParams, RouteBody } from '@/safepoint'
 
 // Typed route parameters
-const params: RouteParams<'post.show'> = { post: 1 }
+const params: RouteParams<'posts.show'> = { post: 1 }
 
 // Typed request body
-const body: RouteBody<'post.store'> = { title: 'Hello', body: 'World' }
+const body: RouteBody<'posts.store'> = { title: 'Hello', body: 'World' }
+```
+
+### route() helper
+
+The generated file includes a typed `route()` helper that builds URLs from route names and parameters:
+
+```vue
+<script setup lang="ts">
+import { route } from '@/safepoint'
+
+const { url, method } = route('posts.show', { post: 42 })
+// url: 'https://example.com/posts/42', method: 'get'
+
+router.push(url) // navigate to the route
+</script>
+<template>
+  <Link route('posts.show', { post: 42 })>View Post</Link>
+</template>
 ```
 
 ### Extending the generated types
@@ -206,7 +200,7 @@ Since the generated file is overwritten on each run, **do not edit it directly.*
 
 ```ts
 // resources/js/safepoint-extend.ts
-declare module './types/safepoint' {
+declare module './safepoint' {
 
   // Add computed or custom fields to a model
   interface Post {
@@ -231,7 +225,7 @@ declare module './types/safepoint' {
 }
 ```
 
-Import this file alongside `safepoint.ts` and TypeScript will merge the declarations automatically.
+Import `safepoint-extend.ts` alongside `safepoint.ts` and TypeScript will merge the declarations automatically.
 
 
 ## License
