@@ -4,6 +4,7 @@ namespace Rosalana\Safepoint\Generators;
 
 use Illuminate\Support\Str;
 use Laravel\Ranger\Components\Model;
+use Laravel\Surveyor\Types\ClassType;
 use Rosalana\Safepoint\Support\SurveyorTypeConverter;
 
 class ModelGenerator
@@ -22,6 +23,13 @@ class ModelGenerator
 
         foreach ($model->getAttributes() as $key => $type) {
             $snakeKey = $model->snakeCaseAttributes() ? Str::snake($key) : $key;
+
+            /** If the attribute is an enum, append 'Enum' to its type */
+            if ($type instanceof ClassType && enum_exists($type->value)) {
+                $attributes[$snakeKey] = SurveyorTypeConverter::convert($type) . 'Enum';
+                continue;
+            }
+
             $attributes[$snakeKey] = SurveyorTypeConverter::convert($type);
         }
 
