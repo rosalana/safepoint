@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PostStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -21,10 +22,12 @@ class Post extends Model
         'body',
         'published',
         'user_id',
+        'status',
     ];
 
     protected $casts = [
         'published' => 'boolean',
+        'status' => PostStatus::class,
     ];
 
     /**
