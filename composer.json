@@ -55,10 +55,7 @@
             "@build",
             "@php vendor/bin/testbench serve --ansi"
         ],
-        "generate": [
-            "@php vendor/bin/testbench migrate --database=sqlite --ansi",
-            "@php -d DB_CONNECTION=sqlite vendor/bin/testbench safepoint:generate --ansi"
-        ]
+        "generate": "bash -c 'php vendor/bin/testbench migrate --database=sqlite --ansi && php -d DB_CONNECTION=sqlite vendor/bin/testbench safepoint:generate --ansi \"$@\"' --"
     },
     "extra": {
         "laravel": {

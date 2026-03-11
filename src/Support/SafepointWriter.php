@@ -12,17 +12,19 @@ class SafepointWriter
      * @param array<string, array{method: string, uri: string}> $routeList
      * @param array<array{name: string, cases: array<string, string>}> $enums
      * @param string $sharedData  The TS type body for SharedData (already formatted)
+     * @param array{routes: bool, models: bool, enums: bool, inertia: bool} $writeOptions
      */
-    public function write(array $models, array $routes, array $routeList, array $enums, string $sharedData): string
+    public function write(array $models, array $routes, array $routeList, array $enums, string $sharedData, array $writeOptions): string
     {
         $sections = array_filter([
             $this->header(),
+            $writeOptions['routes'] ? $this->imports() : null,
             $this->modelsSection($models),
             $this->enumsSection($enums),
             $this->routesSection($routes),
             $this->sharedDataSection($sharedData),
             $this->routeListSection($routeList),
-            $this->helpersSection(),
+            $writeOptions['routes'] ? $this->helpersSection() : null,
         ]);
 
         return implode(PHP_EOL . PHP_EOL, $sections) . PHP_EOL;
@@ -36,7 +38,12 @@ class SafepointWriter
          * Do not edit directly — changes will be overwritten
          * Run `php artisan safepoint:generate` to regenerate
          */
+        TS;
+    }
 
+    private function imports(): string
+    {
+        return <<<'TS'
         import type { PageProps as InertiaPageProps } from '@inertiajs/core';
         TS;
     }

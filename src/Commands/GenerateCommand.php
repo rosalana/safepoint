@@ -22,7 +22,7 @@ class GenerateCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'safepoint:generate {--path=} {--base-path=} {--app-path=}';
+    protected $signature = 'safepoint:generate {--path=} {--base-path=} {--app-path=} {--skip-routes} {--skip-models} {--skip-enums} {--skip-shared-data}';
 
     /**
      * The console command description.
@@ -43,6 +43,14 @@ class GenerateCommand extends Command
         $enums = null;
         $sharedData = null;
 
+        /** @var array{routes: bool, models: bool, enums: bool, inertia: bool} $writeOptions */
+        $writeOptions = [
+            'routes' => !$this->option('skip-routes'),
+            'models' => !$this->option('skip-models'),
+            'enums' => !$this->option('skip-enums'),
+            'inertia' => !$this->option('skip-shared-data'),
+        ];
+
         $basePaths = $this->option('base-path')
             ? array_map('trim', explode(',', $this->option('base-path')))
             : [base_path()];
@@ -54,7 +62,12 @@ class GenerateCommand extends Command
         $ranger->setBasePaths(...$basePaths);
         $ranger->setAppPaths(...$appPaths);
 
-        $ranger->onModel(function (Model $model) use (&$models, &$modelRegistry, $appPaths) {
+        $ranger->onModel(function (Model $model) use (&$models, &$modelRegistry, $appPaths, $writeOptions) {
+            // Skip if --skip-models is set    
+            if ($writeOptions['models'] === false) {
+                return;
+            }
+
             // Skip vendor models (e.g. DatabaseNotification from Notifiable trait)
             try {
                 $modelFile = (new \ReflectionClass($model->name))->getFileName();
@@ -71,16 +84,31 @@ class GenerateCommand extends Command
             $modelRegistry[$data['fqn']] = $data;
         });
 
-        $ranger->onInertiaSharedData(function (InertiaSharedData $data) use (&$sharedData) {
+        $ranger->onInertiaSharedData(function (InertiaSharedData $data) use (&$sharedData, $writeOptions) {
+            // Skip if --skip-shared-data is set
+            if ($writeOptions['inertia'] === false) {
+                return;
+            }
+
             $sharedData = (new SharedDataGenerator())->generate($data);
         });
 
-        $ranger->onRoutes(function (Collection $routeCollection) use (&$routes, &$routeList, &$modelRegistry, $appPaths) {
+        $ranger->onRoutes(function (Collection $routeCollection) use (&$routes, &$routeList, &$modelRegistry, $appPaths, $writeOptions) {
+            // Skip if --skip-routes is set
+            if ($writeOptions['routes'] === false) {
+                return;
+            }
+
             $routes = (new RoutesGenerator($modelRegistry, $appPaths))->generate($routeCollection);
             $routeList = (new RouteListGenerator($appPaths))->generate($routeCollection);
         });
 
-        $ranger->onEnums(function (Collection $enumsCollection) use (&$enums) {
+        $ranger->onEnums(function (Collection $enumsCollection) use (&$enums, $writeOptions) {
+            // Skip if --skip-enums is set
+            if ($writeOptions['enums'] === false) {
+                return;
+            }
+
             $enums = (new EnumsGenerator())->generate($enumsCollection);
         });
 
@@ -106,6 +134,7 @@ class GenerateCommand extends Command
             routeList: $routeList ?? [],
             enums: $enums ?? [],
             sharedData: $sharedData ?? '',
+            writeOptions: $writeOptions,
         );
 
         $outputPath = $this->option('path') ?? resource_path('js/safepoint.ts');
