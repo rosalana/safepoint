@@ -100,6 +100,10 @@ php artisan safepoint:generate
 | `--path=` | Custom output path (default: `resources/js/safepoint.ts`) |
 | `--base-path=` | Comma-separated base paths (default: `base_path()`) |
 | `--app-path=` | Comma-separated app paths (default: `app_path()`) |
+| `--skip-routes` | Skip route and route list generation |
+| `--skip-models` | Skip model interface generation |
+| `--skip-enums` | Skip enum type generation |
+| `--skip-shared-data` | Skip shared data interface generation |
 
 ### Multiple paths (monorepo)
 
