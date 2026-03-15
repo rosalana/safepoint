@@ -62,55 +62,48 @@ class GenerateCommand extends Command
         $ranger->setBasePaths(...$basePaths);
         $ranger->setAppPaths(...$appPaths);
 
-        $ranger->onModel(function (Model $model) use (&$models, &$modelRegistry, $appPaths, $writeOptions) {
-            // Skip if --skip-models is set    
-            if ($writeOptions['models'] === false) {
-                return;
-            }
-
-            // Skip vendor models (e.g. DatabaseNotification from Notifiable trait)
-            try {
-                $modelFile = (new \ReflectionClass($model->name))->getFileName();
-                $inAppPath = collect($appPaths)->contains(fn($path) => str_starts_with($modelFile, $path));
-                if (! $inAppPath) {
+        // Skip if --skip-models is set
+        if ($writeOptions['models'] === true) {
+            $ranger->onModel(function (Model $model) use (&$models, &$modelRegistry, $appPaths, $writeOptions) {
+                // Skip vendor models (e.g. DatabaseNotification from Notifiable trait)
+                try {
+                    $modelFile = (new \ReflectionClass($model->name))->getFileName();
+                    $inAppPath = collect($appPaths)->contains(fn($path) => str_starts_with($modelFile, $path));
+                    if (! $inAppPath) {
+                        return;
+                    }
+                } catch (\ReflectionException) {
                     return;
                 }
-            } catch (\ReflectionException) {
-                return;
-            }
 
-            $data = (new ModelGenerator())->generate($model);
-            $models[] = $data;
-            $modelRegistry[$data['fqn']] = $data;
-        });
+                $data = (new ModelGenerator())->generate($model);
+                $models[] = $data;
+                $modelRegistry[$data['fqn']] = $data;
+            });
+        }
 
-        $ranger->onInertiaSharedData(function (InertiaSharedData $data) use (&$sharedData, $writeOptions) {
-            // Skip if --skip-shared-data is set
-            if ($writeOptions['inertia'] === false) {
-                return;
-            }
+        // Skip if --skip-shared-data is set
+        if ($writeOptions['inertia'] === true) {
+            $ranger->onInertiaSharedData(function (InertiaSharedData $data) use (&$sharedData, $writeOptions) {
+                $sharedData = (new SharedDataGenerator())->generate($data);
+            });
+        }
 
-            $sharedData = (new SharedDataGenerator())->generate($data);
-        });
+        // Skip if --skip-routes is set
+        if ($writeOptions['routes'] === true) {
+            $ranger->onRoutes(function (Collection $routeCollection) use (&$routes, &$routeList, &$modelRegistry, $appPaths, $writeOptions) {
+                $routes = (new RoutesGenerator($modelRegistry, $appPaths))->generate($routeCollection);
+                $routeList = (new RouteListGenerator($appPaths))->generate($routeCollection);
+            });
+        }
 
-        $ranger->onRoutes(function (Collection $routeCollection) use (&$routes, &$routeList, &$modelRegistry, $appPaths, $writeOptions) {
-            // Skip if --skip-routes is set
-            if ($writeOptions['routes'] === false) {
-                return;
-            }
+        // Skip if --skip-enums is set
+        if ($writeOptions['enums'] === true) {
+            $ranger->onEnums(function (Collection $enumsCollection) use (&$enums, $writeOptions) {
 
-            $routes = (new RoutesGenerator($modelRegistry, $appPaths))->generate($routeCollection);
-            $routeList = (new RouteListGenerator($appPaths))->generate($routeCollection);
-        });
-
-        $ranger->onEnums(function (Collection $enumsCollection) use (&$enums, $writeOptions) {
-            // Skip if --skip-enums is set
-            if ($writeOptions['enums'] === false) {
-                return;
-            }
-
-            $enums = (new EnumsGenerator())->generate($enumsCollection);
-        });
+                $enums = (new EnumsGenerator())->generate($enumsCollection);
+            });
+        }
 
         $ranger->walk();
 
