@@ -36,22 +36,28 @@ class RouteListGenerator
             return true;
         }
 
-        if (! $route->hasController()) {
-            return false;
-        }
-
         try {
             $controllerPath = $route->controllerPath();
         } catch (\Throwable) {
             return false;
         }
 
-        foreach ($this->appPaths as $appPath) {
-            if (str_starts_with($controllerPath, $appPath)) {
-                return true;
-            }
+        if (in_array($controllerPath, ['[serialized-closure]', '[unknown]'])) {
+            return false;
         }
 
-        return false;
+        // Controller routes: must be under one of the configured app paths
+        if ($route->hasController()) {
+            foreach ($this->appPaths as $appPath) {
+                if (str_starts_with($controllerPath, $appPath)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Closure routes: include if not from vendor (match /vendor/ as a path segment)
+        return ! (bool) preg_match('#[/\\\\]vendor[/\\\\]#', $controllerPath);
     }
 }
