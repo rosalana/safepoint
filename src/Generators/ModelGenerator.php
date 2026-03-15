@@ -26,7 +26,8 @@ class ModelGenerator
 
             /** If the attribute is an enum, append 'Enum' to its type */
             if ($type instanceof ClassType && enum_exists($type->value)) {
-                $attributes[$snakeKey] = SurveyorTypeConverter::convert($type) . 'Enum';
+                $converted = SurveyorTypeConverter::convert($type);
+                $attributes[$snakeKey] = preg_replace('/^([^\s|]+)/', '$1Enum', $converted);
                 continue;
             }
 
