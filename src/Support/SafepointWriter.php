@@ -44,7 +44,7 @@ class SafepointWriter
     private function imports(): string
     {
         return <<<'TS'
-        import type { PageProps as InertiaPageProps } from '@inertiajs/core';
+        import type { PageProps as InertiaPageProps, Method } from '@inertiajs/core';
         TS;
     }
 
@@ -199,8 +199,6 @@ class SafepointWriter
         return <<<'TS'
         /* --- Helpers --- */
 
-        type Method = 'get' | 'post' | 'put' | 'patch' | 'delete' | 'options' | 'head';
-
         type RequiredKeys<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>
 
         export type PageProps<T extends keyof Routes> = InertiaPageProps & (
@@ -221,7 +219,7 @@ class SafepointWriter
         export function route<T extends keyof Routes>(
           name: T,
           ...args: Routes[T]['params'] extends never ? [] : [params: Routes[T]['params']]
-        ): { url: string; method: Method } {
+        ): { url: string; method: Method, current: () => boolean } {
           const [params] = args
           let url: string = window.location.origin + _routes[name].uri;
           if (params) {
@@ -229,7 +227,19 @@ class SafepointWriter
             url = url.replace(`{${key}}`, String(value))
             }
           }
-          return { url, method: _routes[name].method };
+          return {
+            url,
+            method: _routes[name].method,
+            current: () => {
+              const currentPath = window.location.pathname.replace(/\/+$/, '') || '/'
+
+              const routePattern = _routes[name].uri
+                .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                .replace(/\\\{[^}]+\\\}/g, '[^/]+')
+                .replace(/\/+$/, '') || '/'
+
+              return new RegExp(`^${routePattern}$`).test(currentPath)
+          },
         }
         TS;
     }
