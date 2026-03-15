@@ -239,7 +239,8 @@ class SafepointWriter
                 .replace(/\/+$/, '') || '/'
 
               return new RegExp(`^${routePattern}$`).test(currentPath)
-          },
+            },
+          }
         }
         TS;
     }
