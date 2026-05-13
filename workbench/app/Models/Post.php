@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PostStatus;
+use App\Enums\RequireStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -30,11 +31,26 @@ class Post extends Model
         'status' => PostStatus::class,
     ];
 
+    protected $appends = [
+        'require_status'
+    ];
+
     /**
      * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function getRequireStatusAttribute(): RequireStatus | null
+    {
+        if ($this->published) {
+            return RequireStatus::REQUIRED;
+        } else if ($this->status === PostStatus::DRAFT) {
+            return RequireStatus::OPTIONAL;
+        } else {
+            return null;
+        }
     }
 }

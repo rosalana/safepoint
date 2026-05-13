@@ -78,6 +78,10 @@ class SurveyorTypeConverter
     {
         $value = ltrim($type->value, '\\');
 
+        if (enum_exists($value)) { // Append 'Enum' to enum types
+            $value = $value . 'Enum';
+        }
+
         if ($value === \Illuminate\Support\Stringable::class) {
             return static::decorate('string', $type);
         }
