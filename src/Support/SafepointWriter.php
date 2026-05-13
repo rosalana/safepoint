@@ -225,10 +225,14 @@ class SafepointWriter
           const [params] = args
           let url: string = window.location.origin + _routes[name].uri;
           if (params) {
-            for (const [key, value] of Object.entries(params as Record<string, string | number>)) {
-            url = url.replace(`{${key}}`, String(value))
+            for (const [key, value] of Object.entries(params as Record<string, string | number | undefined>)) {
+              if (value !== undefined && value !== null) {
+                url = url.replace(`{${key}?}`, String(value))
+                url = url.replace(`{${key}}`, String(value))
+              }
             }
           }
+          url = url.replace(/\/\{[^}]+\?\}/g, '')
           return { url, method: _routes[name].method };
         }
         TS;
