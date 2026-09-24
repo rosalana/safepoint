@@ -221,7 +221,10 @@ class SafepointWriter
           ...args: Routes[T]['params'] extends never ? [] : [params: Routes[T]['params']]
         ): { url: string; method: Method, current: () => boolean } {
           const [params] = args
-          let url: string = window.location.origin + _routes[name].uri;
+          // The helper also runs during SSR, where there is no window; an empty
+          // origin still yields a valid root-relative URL for Inertia.
+          const origin = typeof window === 'undefined' ? '' : window.location.origin
+          let url: string = origin + _routes[name].uri;
           if (params) {
             for (const [key, value] of Object.entries(params as Record<string, string | number | undefined>)) {
               if (value !== undefined && value !== null) {
@@ -235,6 +238,8 @@ class SafepointWriter
             url,
             method: _routes[name].method,
             current: () => {
+              if (typeof window === 'undefined') return false
+
               const currentPath = window.location.pathname.replace(/\/+$/, '') || '/'
 
               const routePattern = _routes[name].uri
