@@ -219,7 +219,7 @@ class SafepointWriter
         export function route<T extends keyof Routes>(
           name: T,
           ...args: Routes[T]['params'] extends never ? [] : [params: Routes[T]['params']]
-        ): { url: string; method: Method, current: () => boolean } {
+        ): { url: string; method: Method, current: (currentUrl?: string) => boolean } {
           const [params] = args
           // Root-relative on purpose: server and client must render the same href,
           // otherwise SSR hydration mismatches on every link.
@@ -236,10 +236,12 @@ class SafepointWriter
           return {
             url,
             method: _routes[name].method,
-            current: () => {
-              if (typeof window === 'undefined') return false
+            // Pass Inertia's page.url to get the same answer on the server and the client.
+            current: (currentUrl?: string) => {
+              const source = currentUrl ?? (typeof window === 'undefined' ? undefined : window.location.pathname)
+              if (source === undefined) return false
 
-              const currentPath = window.location.pathname.replace(/\/+$/, '') || '/'
+              const currentPath = source.split(/[?#]/)[0].replace(/\/+$/, '') || '/'
 
               const routePattern = _routes[name].uri
                 .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
