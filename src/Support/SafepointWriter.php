@@ -21,9 +21,9 @@ class SafepointWriter
             $writeOptions['routes'] ? $this->imports() : null,
             $this->modelsSection($models),
             $this->enumsSection($enums),
-            $this->routesSection($routes),
-            $this->sharedDataSection($sharedData),
-            $this->routeListSection($routeList),
+            $writeOptions['routes'] ? $this->routesSection($routes) : null,
+            $this->sharedDataSection($sharedData, $writeOptions['routes']),
+            $writeOptions['routes'] ? $this->routeListSection($routeList) : null,
             $writeOptions['routes'] ? $this->helpersSection() : null,
         ]);
 
@@ -114,8 +114,9 @@ class SafepointWriter
 
     private function routesSection(array $routes): string
     {
+        // The helpers reference Routes, so it must exist even when there are no routes
         if (empty($routes)) {
-            return '';
+            return '/* --- Routes --- */' . PHP_EOL . PHP_EOL . 'export interface Routes {}';
         }
 
         $lines = [];
@@ -164,10 +165,13 @@ class SafepointWriter
         );
     }
 
-    private function sharedDataSection(string $sharedData): string
+    private function sharedDataSection(string $sharedData, bool $required): string
     {
         if ($sharedData === '' || $sharedData === 'Record<string, never>') {
-            return '';
+            // PageProps references SharedData, so it must exist whenever the helpers are written
+            return $required
+                ? '/* --- Shared Data --- */' . PHP_EOL . PHP_EOL . 'export interface SharedData {}'
+                : '';
         }
 
         return '/* --- Shared Data --- */' . PHP_EOL . PHP_EOL
@@ -177,7 +181,8 @@ class SafepointWriter
     private function routeListSection(array $routes): string
     {
         if (empty($routes)) {
-            return '';
+            return '/* --- Route List --- */' . PHP_EOL . PHP_EOL
+                . 'export const _routes: { [key in keyof Routes]: { method: Method, uri: string } } = {}';
         }
 
         $lines = [];

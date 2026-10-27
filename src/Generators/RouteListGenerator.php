@@ -46,6 +46,11 @@ class RouteListGenerator
             return false;
         }
 
+        // Route::inertia() routes are declared by the app, but point at Inertia's vendor controller
+        if ($route->hasController() && ltrim($route->controller(), '\\') === 'Inertia\\Controller') {
+            return true;
+        }
+
         // Controller routes: must be under one of the configured app paths
         if ($route->hasController()) {
             foreach ($this->appPaths as $appPath) {
