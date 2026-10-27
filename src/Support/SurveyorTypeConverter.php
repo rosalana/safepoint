@@ -86,6 +86,11 @@ class SurveyorTypeConverter
             return static::decorate('string', $type);
         }
 
+        // Dates (Carbon, DateTime, ...) are serialized to ISO strings in JSON
+        if (is_a($value, \DateTimeInterface::class, true)) {
+            return static::decorate('string', $type);
+        }
+
         // Handle any Collection subclass (Eloquent, Support, etc.)
         if (is_a($value, \Illuminate\Support\Collection::class, true)) {
             $generics = $type->genericTypes();

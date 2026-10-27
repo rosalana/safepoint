@@ -36,6 +36,8 @@ class GenerateCommand extends Command
      */
     public function handle(Ranger $ranger, Filesystem $files): void
     {
+        $this->ensureMemoryLimit();
+
         $models = [];
         $modelRegistry = [];
         $routes = null;
@@ -136,5 +138,20 @@ class GenerateCommand extends Command
         $files->put($outputPath, $output);
 
         $this->info("Generated: {$outputPath}");
+    }
+
+    /**
+     * Static analysis (Ranger/Surveyor) easily exceeds PHP's default 128M limit,
+     * so raise it to 1G unless a higher (or unlimited) limit is already set.
+     */
+    private function ensureMemoryLimit(): void
+    {
+        $current = ini_get('memory_limit');
+
+        if ($current === '-1' || ini_parse_quantity($current) >= 1024 * 1024 * 1024) {
+            return;
+        }
+
+        ini_set('memory_limit', '1G');
     }
 }
